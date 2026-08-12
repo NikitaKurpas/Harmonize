@@ -41,15 +41,34 @@ package final class ConcurrentDictionary<Key: Hashable, Value> {
     
     // Removes the given key and its value from the dictionary.
     public func removeValue(forKey key: Key) -> Value? {
-        return queue.sync {
+        return queue.sync(flags: .barrier) {
             elements.removeValue(forKey: key)
         }
     }
     
     // Removes all elements from the dictionary.
     public func removeAll() {
-        queue.async(flags: .barrier) {
-            self.elements.removeAll()
+        queue.sync(flags: .barrier) {
+            elements.removeAll()
+        }
+    }
+
+    /// Returns the existing value for `key`, or inserts and returns a newly
+    /// created value. Creation happens outside the barrier so expensive work
+    /// for unrelated keys can proceed concurrently.
+    package func value(forKey key: Key, orInsert makeValue: () -> Value) -> Value {
+        if let value = getValue(key: key) {
+            return value
+        }
+
+        let newValue = makeValue()
+        return queue.sync(flags: .barrier) {
+            if let value = elements[key] {
+                return value
+            }
+
+            elements[key] = newValue
+            return newValue
         }
     }
     
@@ -60,8 +79,8 @@ package final class ConcurrentDictionary<Key: Hashable, Value> {
     }
     
     private func setValue(key: Key, value: Value?) {
-        queue.async(flags: .barrier) {
-            self.elements[key] = value
+        queue.sync(flags: .barrier) {
+            elements[key] = value
         }
     }
 }
