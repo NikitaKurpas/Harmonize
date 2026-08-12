@@ -55,7 +55,9 @@ package final class ConcurrentDictionary<Key: Hashable, Value> {
 
     /// Returns the existing value for `key`, or inserts and returns a newly
     /// created value. Creation happens outside the barrier so expensive work
-    /// for unrelated keys can proceed concurrently.
+    /// for unrelated keys can proceed concurrently. Under contention,
+    /// `makeValue` may run more than once for the same key; callers must make
+    /// it safe to execute redundantly. Only one created value is retained.
     package func value(forKey key: Key, orInsert makeValue: () -> Value) -> Value {
         if let value = getValue(key: key) {
             return value

@@ -31,13 +31,13 @@ public final class SwiftSourceCode {
     private static let resolverCache = ConcurrentDictionary<String, SourceFileSyntaxResolver>()
     
     /// Transforms Swift Syntax into the Semantics Models.
-    internal lazy var resolver: SourceFileSyntaxResolver = {
+    internal var resolver: SourceFileSyntaxResolver {
         SwiftSourceCode.resolverCache.value(forKey: cacheKey) {
             // The raw parse is enough: the few APIs that need folded operator
             // sequences (infix expressions, comparisons) fold at the point of use.
             SourceFileSyntaxResolver(source: self, node: sourceFileSyntax)
         }
-    }()
+    }
 
     /// The URL pointing to the Swift source file, if provided. Nil if `source` is provided directly as string.
     private let url: URL?
@@ -50,12 +50,12 @@ public final class SwiftSourceCode {
     
     /// Cache key for syntax caching. Uses file path for file-based sources,
     /// or a hash of the source content for in-memory sources.
-    internal lazy var cacheKey: String = {
+    internal var cacheKey: String {
         if let url = url {
             return url.absoluteString
         }
         return "source:\(source.hashValue)"
-    }()
+    }
     
     /// Initializes the `SwiftSourceCode` with a URL pointing to a Swift source file.
     ///
