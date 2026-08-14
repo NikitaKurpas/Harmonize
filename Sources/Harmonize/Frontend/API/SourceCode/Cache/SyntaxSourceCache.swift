@@ -40,9 +40,14 @@ internal class SyntaxSourceCache<Syntax> {
     }
     
     func get(_ source: SwiftSourceCode) -> Syntax {
-        elements.value(forKey: source.cacheKey) {
-            factory(source)
+        let cacheKey = source.cacheKey
+        guard let element = elements[cacheKey] else {
+            let newElement = factory(source)
+            elements[cacheKey] = newElement
+            return newElement
         }
+        
+        return element
     }
     
     func set(_ source: SwiftSourceCode, value: Syntax) {

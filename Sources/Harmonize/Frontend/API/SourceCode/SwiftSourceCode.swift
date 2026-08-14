@@ -32,11 +32,16 @@ public final class SwiftSourceCode {
     
     /// Transforms Swift Syntax into the Semantics Models.
     internal lazy var resolver: SourceFileSyntaxResolver = {
-        SwiftSourceCode.resolverCache.value(forKey: cacheKey) {
-            // The raw parse is enough: the few APIs that need folded operator
-            // sequences (infix expressions, comparisons) fold at the point of use.
-            SourceFileSyntaxResolver(source: self, node: sourceFileSyntax)
+        if let cached = SwiftSourceCode.resolverCache[cacheKey] {
+            return cached
         }
+        
+        // Create new resolver and cache it.
+        // The raw parse is enough: the few APIs that need folded operator
+        // sequences (infix expressions, comparisons) fold at the point of use.
+        let newResolver = SourceFileSyntaxResolver(source: self, node: sourceFileSyntax)
+        SwiftSourceCode.resolverCache[cacheKey] = newResolver
+        return newResolver
     }()
 
     /// The URL pointing to the Swift source file, if provided. Nil if `source` is provided directly as string.

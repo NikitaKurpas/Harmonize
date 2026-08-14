@@ -50,8 +50,34 @@ internal class HarmonizeScopeBuilder {
 
     private var files: [SwiftSourceCode] {
         let key = cacheKey(folder: folder, includingOnly: includingOnly, exclusions: exclusions)
-        return Self.sharedFilesCache.value(forKey: key) {
-            getFiles(folder: folder, inclusions: includingOnly, exclusions: exclusions)
+
+        if let cachedFiles = Self.sharedFilesCache[key] {
+            return cachedFiles
+        }
+
+        let newFiles = getFiles(folder: folder, inclusions: includingOnly, exclusions: exclusions)
+        Self.warmUp(newFiles)
+        Self.sharedFilesCache[key] = newFiles
+
+        return newFiles
+    }
+
+    /// Materializes syntax trees and declarations for all files in parallel.
+    ///
+    /// Parsing is CPU-bound and independent per file; left to the lazy
+    /// `resolver`, it happens serially on first access and keeps all but one
+    /// core idle. Each file is warmed by exactly one iteration, which is what
+    /// makes touching its lazy `resolver` from here thread-safe. Files already
+    /// parsed under another scope resolve instantly from the shared caches.
+    private static func warmUp(_ files: [SwiftSourceCode]) {
+        // concurrentPerform inherits the caller's QoS; XCTest builds test
+        // suites at a low QoS, which confines the work to efficiency cores.
+        // Hop to an explicit user-initiated context so the warm-up actually
+        // fans out across performance cores.
+        DispatchQueue.global(qos: .userInitiated).sync {
+            DispatchQueue.concurrentPerform(iterations: files.count) { index in
+                _ = files[index].resolver
+            }
         }
     }
 
